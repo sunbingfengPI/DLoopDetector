@@ -24,12 +24,11 @@
 
 #include <DLoopDetector/feature_extractor.h>
 
-using namespace DLoopDetector;
 using namespace DBoW2;
 using namespace DVision;
 using namespace std;
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+namespace DLoopDetector {
 
 /// This functor extracts BRIEF descriptors in the required format
 class BriefExtractor: public FeatureExtractor<FBrief::TDescriptor>
@@ -56,7 +55,6 @@ private:
   DVision::BRIEF m_brief;
 };
 
-// ----------------------------------------------------------------------------
 
 BriefExtractor::BriefExtractor(const std::string &pattern_file)
 {
@@ -78,7 +76,6 @@ BriefExtractor::BriefExtractor(const std::string &pattern_file)
   m_brief.importPairs(x1, y1, x2, y2);
 }
 
-// ----------------------------------------------------------------------------
 
 void BriefExtractor::operator() (const cv::Mat &im, 
   vector<cv::KeyPoint> &keys, vector<FBrief::TDescriptor> &descriptors) const
@@ -97,7 +94,7 @@ void BriefExtractor::operator() (const cv::Mat &im,
   m_brief.compute(im, keys, descriptors);
 }
 
-// ----------------------------------------------------------------------------
+} // namespace DLoopDetector
 
 #endif
 

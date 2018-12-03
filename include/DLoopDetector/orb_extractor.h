@@ -24,12 +24,11 @@
 
 #include <DLoopDetector/feature_extractor.h>
 
-using namespace DLoopDetector;
 using namespace DBoW2;
 using namespace DVision;
 using namespace std;
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+namespace DLoopDetector {
 
 /// This functor extracts BRIEF descriptors in the required format
 class ORBExtractor: public FeatureExtractor<FORB::TDescriptor>
@@ -56,14 +55,12 @@ private:
   cv::Ptr<cv::ORB> orb_ptr;
 };
 
-// ----------------------------------------------------------------------------
 
 ORBExtractor::ORBExtractor()
 {
   orb_ptr = cv::ORB::create();  
 }
 
-// ----------------------------------------------------------------------------
 
 void ORBExtractor::operator() (const cv::Mat &im, 
   vector<cv::KeyPoint> &keys, vector<FORB::TDescriptor> &descriptors) const
@@ -93,6 +90,6 @@ void ORBExtractor::changeStructure(const cv::Mat &plain, vector<cv::Mat> &out) c
   }
 }
 
-// ----------------------------------------------------------------------------
+} // namespace DLoopDetector
 
 #endif

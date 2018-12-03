@@ -26,12 +26,11 @@
 
 #include <opencv2/imgproc/imgproc_c.h>
 
-using namespace DLoopDetector;
 using namespace DBoW2;
 using namespace std;
 
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+namespace DLoopDetector {
 
 /// Generic class to create functors to extract features
 template<class TDescriptor>
@@ -50,4 +49,5 @@ public:
   int max_feat = 300;    
 };
 
+} // namespace DLoopDetector
 #endif
