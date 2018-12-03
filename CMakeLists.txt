@@ -4,7 +4,7 @@ include(ExternalProject)
 
 set(CMAKE_CXX_STANDARD 14) #add_compile_options(-std=c++14)
 
-option(BUILD_DemoBRIEF  "Build demo application with BRIEF features" ON)
+option(BUILD_DemoBRIEF  "Build demo application with BRIEF features" OFF)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -63,6 +63,7 @@ macro(GetDependency name other_dependency tag)
 endmacro(GetDependency)
 
 GetDependency(DLib "" master)
+# use this specific commit, because the latest DBoW2 has removed DVision and DUtils support.
 GetDependency(DBoW2 DLib 67edcbc16903b314e9f19fd0bce6e93eef5e6635)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system thread regex chrono date_time atomic)
@@ -75,31 +76,14 @@ add_custom_target(Dependencies ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS DBoW
 
 include_directories(include/)
 
-message(STATUS "DLib_LIBS: ${DLib_LIBS}")
+add_library(${PROJECT_NAME} INTERFACE)
+add_dependencies(${PROJECT_NAME} DLib_dep DBoW2_dep)
+target_include_directories(${PROJECT_NAME} INTERFACE include/)
+target_link_libraries(${PROJECT_NAME} INTERFACE ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS} boost)
 
 if(BUILD_DemoBRIEF)
   add_executable(demo demo/main.cpp)
-  add_dependencies(demo DLib_dep DBoW2_dep)
-  target_link_libraries(demo ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS} boost -Ldependencies/install/lib/)
-endif(BUILD_DemoBRIEF)
-
-#if(BUILD_DemoSURF)
-#  add_executable(demo_surf demo/demo_surf.cpp)
-#  target_link_libraries(demo_surf ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS})
-#endif(BUILD_DemoSURF)
-
-if(BUILD_DemoBRIEF)
-  set(RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources/)
-  set(RESOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/resources.tar.gz)
-  if(NOT EXISTS ${RESOURCE_DIR})
-    if(EXISTS ${RESOURCE_FILE})
-      execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${RESOURCE_FILE})
-    else()
-      message("To run the demo application, please download \
-https://drive.google.com/uc?export=download&id=1MpZwPjXDAUxKfSTpeCjG0PAUpaeWuo7D \
-into ${RESOURCE_FILE} and run cmake again.")
-    endif()
-  endif(NOT EXISTS ${RESOURCE_DIR})
+  target_link_libraries(demo ${PROJECT_NAME})
 endif(BUILD_DemoBRIEF)
 
 configure_file(src/DLoopDetector.cmake.in
