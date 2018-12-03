@@ -19,12 +19,14 @@
 
 // DLoopDetector and DBoW2
 #include <DBoW2/DBoW2.h>
-#include "DLoopDetector.h"
+#include <DLoopDetector/DLoopDetector.h>
 #include <DUtils/DUtils.h>
 #include <DUtilsCV/DUtilsCV.h>
 #include <DVision/DVision.h>
 
 #include <opencv2/imgproc/imgproc_c.h>
+
+#include <DLoopDetector/feature_extractor.h>
 
 using namespace DLoopDetector;
 using namespace DBoW2;
@@ -33,22 +35,6 @@ using namespace std;
 static const int IMAGE_W = 1280; // image size
 static const int IMAGE_H = 720;
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
-/// Generic class to create functors to extract features
-template<class TDescriptor>
-class FeatureExtractor
-{
-public:
-  /**
-   * Extracts features
-   * @param im image
-   * @param keys keypoints extracted
-   * @param descriptors descriptors extracted
-   */
-  virtual void operator()(const cv::Mat &im, 
-    vector<cv::KeyPoint> &keys, vector<TDescriptor> &descriptors) const = 0;
-};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 

@@ -73,7 +73,7 @@ target_compile_options(boost INTERFACE "-Wno-deprecated-declarations;")
 
 add_custom_target(Dependencies ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS DBoW2_dep DLib_dep)
 
-include_directories(include/DLoopDetector/)
+include_directories(include/)
 
 message(STATUS "DLib_LIBS: ${DLib_LIBS}")
 
