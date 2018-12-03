@@ -28,11 +28,16 @@ using namespace std;
 
 // ----------------------------------------------------------------------------
 
-static const char *VOC_FILE = "./resources/brief_k10L6.voc.gz";
-static const char *IMAGE_DIR = "./resources/images";
-static const char *POSE_FILE = "./resources/pose.txt";
-static const int IMAGE_W = 640; // image size
-static const int IMAGE_H = 480;
+// static const char *VOC_FILE = "./resources/brief_k10L6.voc.gz";
+// static const char *IMAGE_DIR = "./resources/images";
+// static const char *POSE_FILE = "./resources/pose.txt";
+static const char *VOC_FILE = "./pi_voc.yml.gz";
+static const char *IMAGE_DIR = "/Volumes/BILL_Mobile/png_converted/";
+static const char *POSE_FILE = "./pos.txt";
+
+// static const int IMAGE_W = 640; // image size
+// static const int IMAGE_H = 480;
+
 static const char *BRIEF_PATTERN_FILE = "./resources/brief_pattern.yml";
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -112,9 +117,16 @@ void BriefExtractor::operator() (const cv::Mat &im,
   vector<cv::KeyPoint> &keys, vector<BRIEF::bitset> &descriptors) const
 {
   // extract FAST keypoints with opencv
-  const int fast_th = 20; // corner detector response threshold
+  const int fast_th = 10; // corner detector response threshold
+  const int max_feat = 300;
   cv::FAST(im, keys, fast_th, true);
   
+  std::sort(keys.begin(), keys.end(), [](const cv::KeyPoint& pt1, const cv::KeyPoint& pt2){
+        return pt1.response > pt2.response;
+  });
+  keys.erase(
+        keys.begin()+max_feat, keys.end());  
+
   // compute their BRIEF descriptor
   m_brief.compute(im, keys, descriptors);
 }

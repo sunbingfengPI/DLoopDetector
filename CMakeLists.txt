@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 2.8)
 project(DLoopDetector)
 include(ExternalProject)
 
-option(BUILD_DemoBRIEF  "Build demo application with BRIEF features" OFF)
+set(CMAKE_CXX_STANDARD 14) #add_compile_options(-std=c++14)
+
+option(BUILD_DemoBRIEF  "Build demo application with BRIEF features" ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -26,10 +28,13 @@ set(HDRS
 set(DEPENDENCY_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 set(DEPENDENCY_INSTALL_DIR ${DEPENDENCY_DIR}/install)
 
+include_directories(${DEPENDENCY_INSTALL_DIR}/include)
+link_directories(${DEPENDENCY_INSTALL_DIR}/lib)
+
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-macro(GetDependency name other_dependency)
+macro(GetDependency name other_dependency tag)
   find_package(${name} QUIET
     PATHS ${DEPENDENCY_INSTALL_DIR})
   if(${${name}_FOUND})
@@ -46,7 +51,7 @@ macro(GetDependency name other_dependency)
       ExternalProject_Add(${name}
         PREFIX ${DEPENDENCY_DIR}
         GIT_REPOSITORY http://github.com/dorian3d/${name}
-        GIT_TAG master
+        GIT_TAG ${tag}
         INSTALL_DIR ${DEPENDENCY_INSTALL_DIR}
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
         DEPENDS ${dependency})
@@ -57,16 +62,25 @@ macro(GetDependency name other_dependency)
   endif(${${name}_FOUND})
 endmacro(GetDependency)
 
-GetDependency(DLib "")
-GetDependency(DBoW2 DLib)
+GetDependency(DLib "" master)
+GetDependency(DBoW2 DLib 67edcbc16903b314e9f19fd0bce6e93eef5e6635)
+
+find_package(Boost REQUIRED COMPONENTS filesystem system thread regex chrono date_time atomic)
+add_library(boost INTERFACE)
+target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIR})
+target_link_libraries(boost INTERFACE ${Boost_LIBRARIES} pthread)
+target_compile_options(boost INTERFACE "-Wno-deprecated-declarations;")
+
 add_custom_target(Dependencies ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS DBoW2_dep DLib_dep)
 
 include_directories(include/DLoopDetector/)
 
+message(STATUS "DLib_LIBS: ${DLib_LIBS}")
+
 if(BUILD_DemoBRIEF)
   add_executable(demo_brief demo/demo_brief.cpp)
   add_dependencies(demo_brief DLib_dep DBoW2_dep)
-  target_link_libraries(demo_brief ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS})
+  target_link_libraries(demo_brief ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS} boost -Ldependencies/install/lib/)
 endif(BUILD_DemoBRIEF)
 
 #if(BUILD_DemoSURF)

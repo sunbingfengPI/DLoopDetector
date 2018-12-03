@@ -24,9 +24,14 @@
 #include <DUtilsCV/DUtilsCV.h>
 #include <DVision/DVision.h>
 
+#include <opencv2/imgproc/imgproc_c.h>
+
 using namespace DLoopDetector;
 using namespace DBoW2;
 using namespace std;
+
+static const int IMAGE_W = 1280; // image size
+static const int IMAGE_H = 720;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -130,7 +135,7 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
   // We are going to change these values individually:
   params.use_nss = true; // use normalized similarity score instead of raw score
   params.alpha = 0.3; // nss threshold
-  params.k = 1; // a loop must be consistent with 1 previous matches
+  params.k = 3; // a loop must be consistent with 1 previous matches
   params.geom_check = GEOM_DI; // use direct index for geometrical checking
   params.di_levels = 2; // use two direct index levels
   
@@ -188,7 +193,7 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
   DUtilsCV::Drawing::Plot::Style normal_style(2); // thickness
   DUtilsCV::Drawing::Plot::Style loop_style('r', 2); // color, thickness
   
-  DUtilsCV::Drawing::Plot implot(240, 320,
+  DUtilsCV::Drawing::Plot implot(IMAGE_H/2, IMAGE_W/2,
     - *std::max_element(xs.begin(), xs.end()),
     - *std::min_element(xs.begin(), xs.end()),
     *std::min_element(ys.begin(), ys.end()),
@@ -202,14 +207,19 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
   // go
   for(unsigned int i = 0; i < filenames.size(); ++i)
   {
+    // downsampling to 2Hz
+    if(i % 15 != 0)
+    {
+      continue;
+    }
+
     cout << "Adding image " << i << ": " << filenames[i] << "... " << endl;
     
     // get image
     cv::Mat im = cv::imread(filenames[i].c_str(), 0); // grey scale
-    
-    // show image
-    DUtilsCV::GUI::showImage(im, true, &win, 10);
-    
+    cv::Mat rgb;
+    cvtColor(im, rgb, CV_GRAY2BGR); 
+
     // get features
     profiler.profile("features");
     extractor(im, keys, descriptors);
@@ -274,6 +284,24 @@ void demoDetector<TVocabulary, TDetector, TDescriptor>::run
     
     cout << endl;
     
+    if(result.detection())
+    {
+      std::string prompt = "Loop detected with image ";
+      prompt += std::to_string(result.match);
+
+      cv::putText(rgb, 
+                  prompt.c_str(),
+                  cv::Point(IMAGE_W/4,IMAGE_H/2), // Coordinates
+                  cv::FONT_HERSHEY_COMPLEX_SMALL, // Font
+                  1.0, // Scale. 2.0 = 2x bigger
+                  cv::Scalar(0,0,255), // BGR Color
+                  1, // Line Thickness (Optional)
+                  8); // Anti-alias (Optional)         
+    }
+ 
+    // show image
+    DUtilsCV::GUI::showImage(rgb, true, &win, 10);
+
     // show trajectory
     if(i > 0)
     {
