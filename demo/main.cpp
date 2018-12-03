@@ -21,6 +21,7 @@
 
 #include "demoDetector.h"
 #include <DLoopDetector/brief_extractor.h>
+#include <DLoopDetector/orb_extractor.h>
 
 using namespace DLoopDetector;
 using namespace DBoW2;
@@ -32,7 +33,7 @@ using namespace std;
 // static const char *VOC_FILE = "./resources/brief_k10L6.voc.gz";
 // static const char *IMAGE_DIR = "./resources/images";
 // static const char *POSE_FILE = "./resources/pose.txt";
-static const char *VOC_FILE = "./pi_voc.yml.gz";
+static const char *VOC_FILE = "./pi_voc_orb.yml.gz";
 static const char *IMAGE_DIR = "/Volumes/BILL_Mobile/png_converted/";
 static const char *POSE_FILE = "./pos.txt";
 
@@ -46,15 +47,19 @@ static const char *BRIEF_PATTERN_FILE = "./resources/brief_pattern.yml";
 
 int main()
 {
-  // prepares the demo
-  demoDetector<BriefVocabulary, BriefLoopDetector, FBrief::TDescriptor> 
-    demo(VOC_FILE, IMAGE_DIR, POSE_FILE, IMAGE_W, IMAGE_H);
-  
+  // prepares the demo, if you use brief method, comment following code
+  // demoDetector<BriefVocabulary, BriefLoopDetector, FBrief::TDescriptor> 
+  //   demo(VOC_FILE, IMAGE_DIR, POSE_FILE, IMAGE_W, IMAGE_H);
+  demoDetector<OrbVocabulary, OrbLoopDetector, FORB::TDescriptor> 
+      demo(VOC_FILE, IMAGE_DIR, POSE_FILE, IMAGE_W, IMAGE_H);  
+
   try 
   {
     // run the demo with the given functor to extract features
-    BriefExtractor extractor(BRIEF_PATTERN_FILE);
-    demo.run("BRIEF", extractor);
+    // BriefExtractor extractor(BRIEF_PATTERN_FILE);
+    // demo.run("BRIEF", extractor);
+    ORBExtractor extractor;
+    demo.run("ORB", extractor);
   }
   catch(const std::string &ex)
   {

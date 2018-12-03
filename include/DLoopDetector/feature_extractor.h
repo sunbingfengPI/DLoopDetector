@@ -46,6 +46,8 @@ public:
    */
   virtual void operator()(const cv::Mat &im, 
     vector<cv::KeyPoint> &keys, vector<TDescriptor> &descriptors) const = 0;
+
+  int max_feat = 300;    
 };
 
 #endif

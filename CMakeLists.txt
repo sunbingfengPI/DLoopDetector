@@ -78,9 +78,9 @@ include_directories(include/)
 message(STATUS "DLib_LIBS: ${DLib_LIBS}")
 
 if(BUILD_DemoBRIEF)
-  add_executable(demo_brief demo/demo_brief.cpp)
-  add_dependencies(demo_brief DLib_dep DBoW2_dep)
-  target_link_libraries(demo_brief ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS} boost -Ldependencies/install/lib/)
+  add_executable(demo demo/main.cpp)
+  add_dependencies(demo DLib_dep DBoW2_dep)
+  target_link_libraries(demo ${OpenCV_LIBS} ${DLib_LIBS} ${DBoW2_LIBS} boost -Ldependencies/install/lib/)
 endif(BUILD_DemoBRIEF)
 
 #if(BUILD_DemoSURF)
