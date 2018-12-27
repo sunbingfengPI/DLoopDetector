@@ -174,7 +174,9 @@ int main()
       
       if(result.detection())
       {
-        std::string prompt = "Loop detected with image ";
+        std::string prompt = "Loop: ";
+        prompt += std::to_string(result.query);
+        prompt += ", match image ";
         prompt += std::to_string(result.match);
 
         cv::putText(rgb, 

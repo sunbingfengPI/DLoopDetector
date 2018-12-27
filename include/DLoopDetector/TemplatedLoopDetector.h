@@ -150,6 +150,10 @@ public:
     /// Max value of the neighbour-ratio of accepted correspondences
     double max_neighbor_ratio;
   
+    // This is to remove redundant keyframe records
+    double redundant_score_alpha;
+    int redundant_interval;
+    int max_entries;
     /**
      * Creates parameters by default
      */ 
@@ -271,6 +275,18 @@ public:
    */
   inline void clear();
 
+  /**
+   * @brief      Determines if a frame record is redundant
+   *
+   * @param[in]  id    The entry ID
+   *
+   * @return     True if redundant, False otherwise.
+   */
+  bool isRedundant(EntryId id) const
+  {
+    return !m_image_keys.count(id);
+  }
+
 protected:
   
   /// Matching island
@@ -389,7 +405,7 @@ protected:
   
   
 protected:
-  
+
   /**
    * Removes from q those results whose score is lower than threshold
    * (that should be alpha * ns_factor)
@@ -423,6 +439,15 @@ protected:
    * @param entry_id
    */
   void updateTemporalWindow(const tIsland &matched_island, EntryId entry_id);
+
+  /**
+   * @brief      Removes a redundant frame, including keypoints and descriptors.
+   *
+   * @param[in]  current         The current entry ID
+   * @param[in]  q               Latest query results
+   * @param[in]  matched_island  The matched island
+   */
+  void removeRedundant(const EntryId current, const QueryResults &q, const tIsland &matched_island);
   
   /**
    * Returns the number of consistent islands in the temporal window
@@ -506,10 +531,10 @@ protected:
   TemplatedDatabase<TDescriptor,F> *m_database;
   
   /// KeyPoints of images
-  vector<vector<cv::KeyPoint> > m_image_keys;
+  map<EntryId, vector<cv::KeyPoint> > m_image_keys;
   
   /// Descriptors of images
-  vector<vector<TDescriptor> > m_image_descriptors;
+  map<EntryId, vector<TDescriptor> > m_image_descriptors;
   
   /// Last bow vector added to database
   BowVector m_last_bowvec;
@@ -565,6 +590,10 @@ void TemplatedLoopDetector<TDescriptor,F>::Parameters::set(float f)
   max_reprojection_error = 2.0;
   
   max_neighbor_ratio = 0.6;
+
+  redundant_score_alpha = 0.5;
+  redundant_interval = 2;
+  max_entries = 2000;
 }
 
 // --------------------------------------------------------------------------
@@ -653,22 +682,22 @@ template<class TDescriptor, class F>
 void TemplatedLoopDetector<TDescriptor,F>::allocate
   (int nentries, int nkeys)
 {
-  const int sz = (const int)m_image_keys.size();
+  // const int sz = (const int)m_image_keys.size();
   
-  if(sz < nentries)
-  {
-    m_image_keys.resize(nentries);
-    m_image_descriptors.resize(nentries);
-  }
+  // if(sz < nentries)
+  // {
+  //   m_image_keys.resize(nentries);
+  //   m_image_descriptors.resize(nentries);
+  // }
   
-  if(nkeys > 0)
-  {
-    for(int i = sz; i < nentries; ++i)
-    {
-      m_image_keys[i].reserve(nkeys);
-      m_image_descriptors[i].reserve(nkeys);
-    }
-  }
+  // if(nkeys > 0)
+  // {
+  //   for(int i = sz; i < nentries; ++i)
+  //   {
+  //     m_image_keys[i].reserve(nkeys);
+  //     m_image_descriptors[i].reserve(nkeys);
+  //   }
+  // }
   
   m_database->allocate(nentries, nkeys);
 }
@@ -737,6 +766,8 @@ bool TemplatedLoopDetector<TDescriptor, F>::detectLoop(
         ns_factor = m_database->getVocabulary()->score(bowvec, m_last_bowvec);
       }
       
+      std::cout << "score:\t" << ns_factor << std::endl;
+      
       if(!m_params.use_nss || ns_factor >= m_params.min_nss_factor)
       {
         // scores in qret must be divided by ns_factor to obtain the
@@ -746,7 +777,7 @@ bool TemplatedLoopDetector<TDescriptor, F>::detectLoop(
         // remove those scores whose nss is lower than alpha
         // (ret is sorted in descending score order now)
         removeLowScores(qret, m_params.alpha * ns_factor);
-        
+
         if(!qret.empty())
         {
           // the best candidate is the one with highest score by now
@@ -768,7 +799,16 @@ bool TemplatedLoopDetector<TDescriptor, F>::detectLoop(
             
             // get the best candidate (maybe match)
             match.match = island.best_entry;
-            
+            removeRedundant(match.query, qret, island);
+
+            std::cout << "query:\t" << match.query
+                      << "\t,query result:\t" << qret.size()
+                      << "\t,islands count:\t" << islands.size()
+                      << "\t,score:\t" << island.score
+                      << "\t,consistency:\t" << getConsistentEntries()
+                      << "\t,possible match:\t" << match.match
+                      << std::endl;
+
             if(getConsistentEntries() > m_params.k)
             {
               // candidate loop detected
@@ -793,7 +833,7 @@ bool TemplatedLoopDetector<TDescriptor, F>::detectLoop(
               { 
                 detection = isGeometricallyConsistent_Exhaustive(
                   m_image_keys[island.best_entry], 
-                  m_image_descriptors[island.best_entry],
+                  m_image_descriptors.at(island.best_entry),
                   keys, descriptors);            
               }
               else // GEOM_NONE, accept the match
@@ -840,17 +880,19 @@ bool TemplatedLoopDetector<TDescriptor, F>::detectLoop(
 
   // update record
   // m_image_keys and m_image_descriptors have the same length
-  if(m_image_keys.size() == entry_id)
-  {
-    m_image_keys.push_back(keys);
-    m_image_descriptors.push_back(descriptors);
-  }
-  else
-  {
-    m_image_keys[entry_id] = keys;
-    m_image_descriptors[entry_id] = descriptors;
-  }
-  
+  // if(m_image_keys.size() == entry_id)
+  // {
+  //   m_image_keys.push_back(keys);
+  //   m_image_descriptors.push_back(descriptors);
+  // }
+  // else
+  // {
+  //   m_image_keys[entry_id] = keys;
+  //   m_image_descriptors[entry_id] = descriptors;
+  // }
+  m_image_keys[entry_id] = keys;
+  m_image_descriptors[entry_id] = descriptors;
+
   // store this bowvec if we are going to use it in next iteratons
   if(m_params.use_nss && (int)entry_id + 1 > m_params.dislocal)
   {
@@ -877,7 +919,7 @@ void TemplatedLoopDetector<TDescriptor, F>::computeIslands
 {
   islands.clear();
   
-  if(q.size() == 1)
+  if(q.size() == 1 && !isRedundant(q[0].Id))
   {
     islands.push_back(tIsland(q[0].Id, q[0].Id, calculateIslandScore(q, 0, 0)));
     islands.back().best_entry = q[0].Id;
@@ -897,18 +939,17 @@ void TemplatedLoopDetector<TDescriptor, F>::computeIslands
     unsigned int i_first = 0;
     unsigned int i_last = 0;
     
-    double best_score = dit->Score;
+    double best_score = -1.0;
     EntryId best_entry = dit->Id;
 
-    ++dit;
-    for(unsigned int idx = 1; dit != q.end(); ++dit, ++idx)
+    for(unsigned int idx = 0; dit != q.end(); ++dit, ++idx)
     {
       if((int)dit->Id - last_island_entry < m_params.max_intragroup_gap)
       {
         // go on until find the end of the island
         last_island_entry = dit->Id;
         i_last = idx;
-        if(dit->Score > best_score)
+        if(dit->Score > best_score && !isRedundant(dit->Id))
         {
           best_score = dit->Score;
           best_entry = dit->Id;
@@ -918,7 +959,7 @@ void TemplatedLoopDetector<TDescriptor, F>::computeIslands
       {
         // end of island reached
         int length = last_island_entry - first_island_entry + 1;
-        if(length >= m_params.min_matches_per_group)
+        if(length >= m_params.min_matches_per_group && best_score > 0.0)
         {
           islands.push_back( tIsland(first_island_entry, last_island_entry,
             calculateIslandScore(q, i_first, i_last)) );
@@ -930,13 +971,12 @@ void TemplatedLoopDetector<TDescriptor, F>::computeIslands
         // prepare next island
         first_island_entry = last_island_entry = dit->Id;
         i_first = i_last = idx;
-        best_score = dit->Score;
-        best_entry = dit->Id;
+        best_score = -1.0;
       }
     }
     // add last island
-    if(last_island_entry - first_island_entry + 1 >= 
-      m_params.min_matches_per_group)
+    if(last_island_entry - first_island_entry + 1 >= m_params.min_matches_per_group 
+        && best_score > 0.0)
     {
       islands.push_back( tIsland(first_island_entry, last_island_entry,
         calculateIslandScore(q, i_first, i_last)) );
@@ -1001,6 +1041,41 @@ void TemplatedLoopDetector<TDescriptor, F>::updateTemporalWindow
 }
 
 // --------------------------------------------------------------------------
+template<class TDescriptor, class F>
+void TemplatedLoopDetector<TDescriptor, F>::removeRedundant
+  (const EntryId current, const QueryResults &q, const tIsland &matched_island)
+{
+  EntryId start = matched_island.first;
+  EntryId end = matched_island.last;
+  EntryId best = matched_island.best_entry;
+  double high = matched_island.best_score;
+
+  int removed = 0;
+  for (EntryId i = start + 1; i < end; i += m_params.redundant_interval)
+  {
+    auto result = std::find_if(q.begin(), q.end(), [&](auto res){
+            return res.Id == i;
+          });
+
+    if(i != best && !isRedundant(i))
+    {
+      removed++;
+      m_image_keys.erase(i);
+      m_image_descriptors.erase(i);
+    }
+  }
+
+  if(current > m_params.max_entries && !isRedundant(current - m_params.max_entries))
+  {
+    m_image_keys.erase(current - m_params.max_entries);
+    m_image_descriptors.erase(current - m_params.max_entries);
+  }
+
+  std::cout << "removed feature record:\t" << removed << "\t,initial:\t" << end - start + 1 << std::endl;
+}
+// --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
 
 template<class TDescriptor, class F>
 bool TemplatedLoopDetector<TDescriptor, F>::isGeometricallyConsistent_DI(
@@ -1031,7 +1106,7 @@ bool TemplatedLoopDetector<TDescriptor, F>::isGeometricallyConsistent_DI(
       vector<unsigned int> i_old_now, i_cur_now;
       
       getMatches_neighratio(
-        m_image_descriptors[old_entry], old_it->second, 
+        m_image_descriptors.at(old_entry), old_it->second, 
         descriptors, cur_it->second,  
         i_old_now, i_cur_now);
       
@@ -1068,7 +1143,7 @@ bool TemplatedLoopDetector<TDescriptor, F>::isGeometricallyConsistent_DI(
     
     for(; oit != i_old.end(); ++oit, ++cit)
     {
-      const cv::KeyPoint &old_k = m_image_keys[old_entry][*oit];
+      const cv::KeyPoint &old_k = m_image_keys.at(old_entry)[*oit];
       const cv::KeyPoint &cur_k = keys[*cit];
       
       old_points.push_back(old_k.pt);
@@ -1172,8 +1247,8 @@ bool TemplatedLoopDetector<TDescriptor, F>::isGeometricallyConsistent_Flann
 {
   vector<unsigned int> i_old, i_cur; // indices of correspondences
   
-  const vector<cv::KeyPoint>& old_keys = m_image_keys[old_entry];
-  const vector<TDescriptor>& old_descs = m_image_descriptors[old_entry];
+  const vector<cv::KeyPoint>& old_keys = m_image_keys.at(old_entry);
+  const vector<TDescriptor>& old_descs = m_image_descriptors.at(old_entry);
   const vector<cv::KeyPoint>& cur_keys = keys;
   
   vector<cv::Mat> queryDescs_v(1);
